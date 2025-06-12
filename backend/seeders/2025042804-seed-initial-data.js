@@ -1,9 +1,9 @@
-// 2025042805-seed-initial-data.js
 const bcrypt = require('bcryptjs');
 
 module.exports = {
   up: async (queryInterface) => {
-    await queryInterface.bulkInsert('Users', [{
+    // Додаємо користувача
+    await queryInterface.bulkInsert('users', [{
       username: 'admin',
       password: await bcrypt.hash('admin123', 10),
       email: 'admin@example.com',
@@ -12,7 +12,8 @@ module.exports = {
       updatedAt: new Date()
     }]);
 
-    await queryInterface.bulkInsert('Categories', [
+    // Додаємо категорії
+    await queryInterface.bulkInsert('categories', [
       {
         name: 'Футболки',
         description: 'Спортивні футболки для тренувань',
@@ -27,14 +28,24 @@ module.exports = {
       }
     ]);
 
-    await queryInterface.bulkInsert('Products', [
+    // Отримуємо ID створених категорій (важливо для зовнішніх ключів у products)
+    const categories = await queryInterface.sequelize.query(
+      `SELECT id, name FROM categories WHERE name IN ('Футболки', 'Шорти');`,
+      { type: queryInterface.sequelize.QueryTypes.SELECT }
+    );
+
+    const categoryMap = {};
+    categories.forEach(cat => categoryMap[cat.name] = cat.id);
+
+    // Додаємо продукти
+    await queryInterface.bulkInsert('products', [
       {
         name: 'Футболка Nike Pro',
         description: 'Дихаюча футболка для інтенсивних тренувань',
         price: 29.99,
         stock: 100,
         imageUrl: '/uploads/nike-pro.jpg',
-        categoryId: 1,
+        categoryId: categoryMap['Футболки'],
         createdAt: new Date(),
         updatedAt: new Date()
       },
@@ -44,16 +55,17 @@ module.exports = {
         price: 24.99,
         stock: 50,
         imageUrl: '/uploads/adidas-run.jpg',
-        categoryId: 2,
+        categoryId: categoryMap['Шорти'],
         createdAt: new Date(),
         updatedAt: new Date()
       }
     ]);
   },
+
   down: async (queryInterface) => {
-    await queryInterface.bulkDelete('Orders', null, {});
-    await queryInterface.bulkDelete('Products', null, {});
-    await queryInterface.bulkDelete('Categories', null, {});
-    await queryInterface.bulkDelete('Users', null, {});
+    await queryInterface.bulkDelete('orders', null, {});
+    await queryInterface.bulkDelete('products', null, {});
+    await queryInterface.bulkDelete('categories', null, {});
+    await queryInterface.bulkDelete('users', null, {});
   }
 };
