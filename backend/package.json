@@ -1,6 +1,6 @@
 {
   "scripts": {
-  "start": "node index.js",
+  "start": "node server.js",
   "migrate": "sequelize db:migrate",
   "seed" :  "sequelize db:seed:all" 
  },
