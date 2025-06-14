@@ -13,7 +13,7 @@ module.exports = {
         primaryKey: true,
         autoIncrement: true,
       },
-      userId: {
+      user_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
@@ -23,7 +23,7 @@ module.exports = {
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
       },
-      productId: {
+      product_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
@@ -41,11 +41,11 @@ module.exports = {
         type: 'enum_orders_status',
         defaultValue: 'reserved',
       },
-      createdAt: {
+      created_at: {
         type: DataTypes.DATE,
         allowNull: false,
       },
-      updatedAt: {
+      updated_at: {
         type: DataTypes.DATE,
         allowNull: false,
       },

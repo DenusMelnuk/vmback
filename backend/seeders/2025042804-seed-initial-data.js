@@ -8,8 +8,8 @@ module.exports = {
       password: await bcrypt.hash('admin123', 10),
       email: 'admin@example.com',
       role: 'admin',
-      createdAt: new Date(),
-      updatedAt: new Date()
+      created_at: new Date(),
+      updated_at: new Date()
     }]);
 
     // Додаємо категорії
@@ -17,14 +17,14 @@ module.exports = {
       {
         name: 'Футболки',
         description: 'Спортивні футболки для тренувань',
-        createdAt: new Date(),
-        updatedAt: new Date()
+        created_at: new Date(),
+        updated_at: new Date()
       },
       {
         name: 'Шорти',
         description: 'Спортивні шорти для бігу та тренувань',
-        createdAt: new Date(),
-        updatedAt: new Date()
+        created_at: new Date(),
+        updated_at: new Date()
       }
     ]);
 
@@ -44,20 +44,20 @@ module.exports = {
         description: 'Дихаюча футболка для інтенсивних тренувань',
         price: 29.99,
         stock: 100,
-        imageUrl: '/uploads/nike-pro.jpg',
-        categoryId: categoryMap['Футболки'],
-        createdAt: new Date(),
-        updatedAt: new Date()
+        image_url: '/uploads/nike-pro.jpg',
+        category_id: categoryMap['Футболки'],
+        created_at: new Date(),
+        updated_at: new Date()
       },
       {
         name: 'Шорти Adidas Run',
         description: 'Легкі шорти для бігу',
         price: 24.99,
         stock: 50,
-        imageUrl: '/uploads/adidas-run.jpg',
-        categoryId: categoryMap['Шорти'],
-        createdAt: new Date(),
-        updatedAt: new Date()
+        image_url: '/uploads/adidas-run.jpg',
+        category_id: categoryMap['Шорти'],
+        created_at: new Date(),
+        updated_at: new Date()
       }
     ]);
   },

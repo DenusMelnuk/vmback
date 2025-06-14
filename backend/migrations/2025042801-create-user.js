@@ -28,11 +28,11 @@ module.exports = {
         type: 'enum_users_role',
         defaultValue: 'user'
       },
-      createdAt: {
+      created_at: {
         type: DataTypes.DATE,
         allowNull: false
       },
-      updatedAt: {
+      updated_at: {
         type: DataTypes.DATE,
         allowNull: false
       }

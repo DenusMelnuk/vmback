@@ -23,7 +23,7 @@ module.exports = {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      imageUrl: {
+      image_url: {
         type: DataTypes.STRING,
         allowNull: true,
       },
@@ -37,11 +37,11 @@ module.exports = {
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
       },
-      createdAt: {
+      created_at: {
         type: DataTypes.DATE,
         allowNull: false,
       },
-      updatedAt: {
+      updated_at: {
         type: DataTypes.DATE,
         allowNull: false,
       },
