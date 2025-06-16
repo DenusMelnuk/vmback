@@ -18,7 +18,7 @@ const sequelize = new Sequelize(
           rejectUnauthorized: false
         }
       } : {
-        ssl: false
+        ssl: true
       })
     },
     define: {
