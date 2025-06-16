@@ -2,7 +2,8 @@
   "scripts": {
   "start": "node server.js",
   "migrate": "sequelize db:migrate",
-  "seed" :  "sequelize db:seed:all" 
+  "seed" :  "sequelize db:seed:all",
+  "undo": "sequelize db:migrate:undo:all",  
  },
   "devDependencies": {
     "sequelize-cli": "^6.6.2"
