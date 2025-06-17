@@ -11,8 +11,8 @@ module.exports = (sequelize, DataTypes) => {
 
   // Асоціації для Product
   Product.associate = (models) => {
-    Product.belongsTo(models.Category, { foreignKey: 'categoryId' });
-    Product.hasMany(models.Order, { foreignKey: 'productId' });
+    Product.belongsTo(models.Category, { foreignKey: 'category_id' });
+    Product.hasMany(models.Order, { foreignKey: 'product_id' });
   };
 
   return Product;
