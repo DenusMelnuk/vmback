@@ -21,7 +21,25 @@ const userRoutes = require('./routes/userRoutes');
 const app = express();
 //app.use(cors());
 
-app.options('*', cors(corsOptions));
+const allowedOrigins = [
+    'http://localhost:3000', // Ваш React-додаток під час розробки
+    'https://your-react-app-domain.com', // Ваш фронтенд-домен на продакшені
+    // Додайте інші дозволені домени, якщо є
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Дозволяємо запити без origin (наприклад, з мобільних додатків або curl)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], // Дозволені HTTP-методи
+  credentials: true, // Дозволити надсилання cookies та HTTP-аутентифікаційних заголовків
+  optionsSuccessStatus: 204 // Деякі старі браузери можуть мати проблеми з 200 для OPTIONS
+};
 app.use(cors(corsOptions)); // Застосуйте налаштований CORS
 
 
