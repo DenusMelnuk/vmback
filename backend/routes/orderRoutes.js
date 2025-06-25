@@ -1,85 +1,127 @@
-// routes/orderRoutes.js
 const express = require('express');
 const router = express.Router();
-const { Order, Product, User } = require('../models'); // Деструктуруємо
-const sequelize = require('../config/db'); // Імпорт екземпляра Sequelize для транзакцій
+const { Order, Product, User } = require('../models');
+const sequelize = require('../config/db');
 const { authenticateToken, isAdmin } = require('../middleware/authMiddleware');
 const { sendEmail } = require('../config/nodemailerConfig');
 const logger = require('../config/logger');
 
+// ... (Ваш POST /orders маршрут залишається без змін)
 router.post('/orders', authenticateToken, async (req, res, next) => {
-  const t = await sequelize.transaction();
+    const t = await sequelize.transaction();
 
-  try {
-    const { productId, quantity } = req.body;
+    try {
+        const { productId, quantity } = req.body;
+        const userId = req.user.id;
 
-    if (!productId || !quantity || quantity <= 0) {
-      await t.rollback();
-      return res.status(400).json({ error: 'Product ID and a positive quantity are required.' });
+        if (!productId || !quantity || quantity <= 0) {
+            await t.rollback();
+            return res.status(400).json({ error: 'Product ID and a positive quantity are required.' });
+        }
+
+        const product = await Product.findByPk(productId, { transaction: t });
+
+        if (!product) {
+            await t.rollback();
+            logger.warn(`Order attempt for non-existent product ID: ${productId} by user ${req.user.username}`);
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        if (product.stock < quantity) {
+            await t.rollback();
+            logger.warn(`Insufficient stock for product ${product.name} (ID: ${productId}). Requested: ${quantity}, Available: ${product.stock}`);
+            return res.status(400).json({ error: `Insufficient stock for ${product.name}. Only ${product.stock} left.` });
+        }
+
+        await product.update({ stock: product.stock - quantity }, { transaction: t });
+
+        const totalPrice = (product.price * quantity).toFixed(2);
+
+        const order = await Order.create({
+            userId: userId,
+            productId,
+            quantity,
+            status: 'reserved',
+            totalPrice: totalPrice
+        }, { transaction: t });
+
+        const user = await User.findByPk(userId, { transaction: t, attributes: ['email', 'username'] });
+
+        if (user && user.email) {
+            try {
+                await sendEmail({
+                    from: process.env.EMAIL_USER,
+                    to: user.email,
+                    subject: 'Підтвердження вашого замовлення',
+                    html: `
+                        <p>Шановний(а) ${user.username || 'клієнт'}!</p>
+                        <p>Дякуємо за ваше замовлення №<strong>${order.id}</strong>.</p>
+                        <p>Ваше замовлення для <strong>${product.name}</strong> (Кількість: ${quantity}) було успішно оформлено.</p>
+                        <p>Загальна вартість: <strong>$${order.totalPrice}</strong></p>
+                        <p>Статус замовлення: ${order.status}</p>
+                        <p>Ми зв'яжемося з вами найближчим часом для уточнення деталей.</p>
+                        <p>З повагою,<br>Ваш магазин</p>
+                    `
+                });
+                logger.info(`Підтвердження замовлення email надіслано до ${user.email} для замовлення ${order.id}`);
+            } catch (emailError) {
+                logger.error(`Помилка надсилання email підтвердження замовлення до ${user.email} для замовлення ${order.id}: ${emailError.message}`, emailError);
+            }
+        } else {
+            logger.warn(`Не вдалося відправити email користувачу ${req.user.username}: адреса email не знайдена.`);
+        }
+
+        if (process.env.OWNER_EMAIL) {
+            try {
+                await sendEmail({
+                    from: process.env.EMAIL_USER,
+                    to: process.env.OWNER_EMAIL,
+                    subject: `Нове замовлення №${order.id}`,
+                    html: `
+                        <p>Вітаємо!</p>
+                        <p>Отримано нове замовлення:</p>
+                        <ul>
+                            <li><strong>ID Замовлення:</strong> ${order.id}</li>
+                            <li><strong>Користувач:</strong> ${user ? user.username : 'N/A'} (ID: ${userId})</li>
+                            <li><strong>Email користувача:</strong> ${user ? user.email : 'N/A'}</li>
+                            <li><strong>Товар:</strong> ${product.name} (ID: ${productId})</li>
+                            <li><strong>Кількість:</strong> ${quantity}</li>
+                            <li><strong>Загальна вартість:</strong> $${order.totalPrice}</li>
+                            <li><strong>Статус:</strong> ${order.status}</li>
+                        </ul>
+                        <p>Будь ласка, перевірте деталі замовлення в адмін-панелі.</p>
+                    `
+                });
+                logger.info(`Сповіщення про нове замовлення email надіслано власнику для замовлення ${order.id}`);
+            } catch (emailError) {
+                logger.error(`Помилка надсилання email сповіщення власнику для замовлення ${order.id}: ${emailError.message}`, emailError);
+            }
+        } else {
+            logger.warn('Змінна середовища OWNER_EMAIL не встановлена. Сповіщення власнику не надіслано.');
+        }
+
+        await t.commit();
+        logger.info(`Замовлення успішно створено: ${order.id} користувачем ${req.user.username}`);
+        res.status(201).json({ message: 'Замовлення успішно оформлено', orderId: order.id, order });
+
+    } catch (error) {
+        if (t && !t.finished) {
+            await t.rollback();
+            logger.warn(`Транзакція для створення замовлення відкочена через помилку.`);
+        }
+        logger.error(`Помилка при створенні замовлення: ${error.message}`, error);
+        next(error);
     }
-
-    const product = await Product.findByPk(productId, { transaction: t });
-
-    if (!product) {
-      await t.rollback();
-      logger.warn(`Order attempt for non-existent product ID: ${productId} by user ${req.user.username}`);
-      return res.status(404).json({ error: 'Product not found' });
-    }
-    if (product.stock < quantity) {
-      await t.rollback();
-      logger.warn(`Insufficient stock for product ${product.name} (ID: ${productId}). Requested: ${quantity}, Available: ${product.stock}`);
-      return res.status(400).json({ error: `Insufficient stock for ${product.name}. Only ${product.stock} left.` });
-    }
-
-    await product.update({ stock: product.stock - quantity }, { transaction: t });
-
-    const order = await Order.create({
-      userId: req.user.id,
-      productId,
-      quantity,
-      status: 'reserved'
-    }, { transaction: t });
-
-    // Відправка email користувачу
-   /* await sendEmail({
-      from: process.env.EMAIL_USER,
-      to: req.user.email,
-      subject: 'Order Confirmation',
-      text: `Your order for ${product.name} (Quantity: ${quantity}) has been reserved. Total price: $${(product.price * quantity).toFixed(2)}`
-    });
-    logger.info(`Order confirmation email sent to ${req.user.email} for order ${order.id}`);
-
-    // Відправка email власнику
-    await sendEmail({
-      from: process.env.EMAIL_USER,
-      to: process.env.OWNER_EMAIL,
-      subject: 'New Order Placed',
-      text: `New order for ${product.name} (Quantity: ${quantity}) by ${req.user.username}. Order ID: ${order.id}`
-    });
-    logger.info(`New order notification email sent to owner for order ${order.id}`);
-*/
-    await t.commit();
-    logger.info(`Order created successfully: ${order.id} by user ${req.user.username}`);
-    res.status(201).json({ message: 'Order placed successfully', orderId: order.id });
-  } catch (error) {
-    if (t && !t.finished) {
-      await t.rollback();
-      logger.warn(`Transaction for order creation rolled back due to error.`);
-    }
-    next(error); // Прокидаємо помилку до централізованого обробника
-  }
 });
 
-// Змінений маршрут GET /orders для отримання замовлень ТІЛЬКИ поточного користувача
-router.get('/orders', authenticateToken, async (req, res) => { // Видалено isAdmin
+// Маршрут для отримання замовлень поточного користувача
+router.get('/orders', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id; // Отримуємо ID поточного користувача з токена
-
+    const userId = req.user.id;
     const orders = await Order.findAll({
-      where: { userId: userId }, // Фільтруємо замовлення за ID користувача
+      where: { userId: userId },
       include: [
         { model: User, attributes: ['username', 'email'] },
-        { model: Product, attributes: ['name', 'price', 'imageUrl'] } // <-- Додано 'imageUrl' сюди!
+        { model: Product, attributes: ['name', 'price', 'imageUrl'] }
       ]
     });
     res.json(orders);
@@ -87,6 +129,45 @@ router.get('/orders', authenticateToken, async (req, res) => { // Видален
     logger.error(`Orders fetch error for user ${req.user.username}: ${error.message}`, error);
     res.status(500).json({ error: 'Failed to fetch orders.' });
   }
+});
+
+// Маршрут для оновлення статусу замовлення (для оформлення)
+// Захищено authenticateToken, але може бути доповнений isAdmin, якщо це адмін-дія
+router.patch('/orders/:orderId/status', authenticateToken, async (req, res) => {
+    const { orderId } = req.params;
+    const { status } = req.body; // Очікуємо новий статус, наприклад 'completed' або 'processed'
+
+    // Перелік дозволених статусів, щоб уникнути довільних змін
+    const allowedStatuses = ['processed', 'completed', 'cancelled']; // Додайте свої статуси
+
+    if (!status || !allowedStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Invalid or missing status.' });
+    }
+
+    try {
+        const order = await Order.findOne({
+            where: {
+                id: orderId,
+                userId: req.user.id // Переконайтеся, що користувач володіє замовленням
+            }
+        });
+
+        if (!order) {
+            return res.status(404).json({ error: 'Order not found or you do not have permission to update it.' });
+        }
+
+        // Оновити статус замовлення
+        await order.update({ status: status });
+        logger.info(`Order ${orderId} status updated to ${status} by user ${req.user.username}`);
+
+        // Можливо, тут також можна відправити email-сповіщення про зміну статусу
+        // наприклад, якщо статус став 'completed'
+
+        res.status(200).json({ message: `Order ${orderId} status updated to ${status}.`, order });
+    } catch (error) {
+        logger.error(`Failed to update status for order ${orderId}: ${error.message}`, error);
+        res.status(500).json({ error: 'Failed to update order status.' });
+    }
 });
 
 
@@ -107,11 +188,10 @@ router.get('/admin/orders', authenticateToken, isAdmin, async (req, res) => {
 });
 
 // Додайте маршрут для видалення замовлення
-router.delete('/orders/:orderId', authenticateToken, async (req, res) => { // Змінено на :orderId, бо фронтенд передає productId
-    const { orderId } = req.params; // orderId замість productId
+router.delete('/orders/:orderId', authenticateToken, async (req, res) => {
+    const { orderId } = req.params;
 
     try {
-        // Find the order to ensure it belongs to the current user
         const order = await Order.findOne({
             where: {
                 id: orderId,
@@ -129,7 +209,7 @@ router.delete('/orders/:orderId', authenticateToken, async (req, res) => { // З
             await product.update({ stock: product.stock + order.quantity });
         }
 
-        await order.destroy(); // Видаляємо замовлення
+        await order.destroy();
 
         res.status(200).json({ message: 'Order successfully removed.' });
     } catch (error) {
