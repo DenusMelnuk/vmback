@@ -6,7 +6,7 @@ const { authenticateToken, isAdmin } = require('../middleware/authMiddleware');
 const { sendEmail } = require('../config/nodemailerConfig');
 const logger = require('../config/logger');
 
-// ... (Ваш POST /orders маршрут залишається без змін)
+// Маршрут для створення нового замовлення (додавання в "кошик")
 router.post('/orders', authenticateToken, async (req, res, next) => {
     const t = await sequelize.transaction();
 
@@ -40,7 +40,7 @@ router.post('/orders', authenticateToken, async (req, res, next) => {
             userId: userId,
             productId,
             quantity,
-            status: 'reserved',
+            status: 'reserved', // Змінено початковий статус на 'reserved'
             totalPrice: totalPrice
         }, { transaction: t });
 
@@ -131,14 +131,13 @@ router.get('/orders', authenticateToken, async (req, res) => {
   }
 });
 
-// Маршрут для оновлення статусу замовлення (для оформлення)
-// Захищено authenticateToken, але може бути доповнений isAdmin, якщо це адмін-дія
+// Маршрут для оновлення статусу замовлення
 router.patch('/orders/:orderId/status', authenticateToken, async (req, res) => {
     const { orderId } = req.params;
-    const { status } = req.body; // Очікуємо новий статус, наприклад 'completed' або 'processed'
+    const { status } = req.body;
 
-    // Перелік дозволених статусів, щоб уникнути довільних змін
-    const allowedStatuses = ['reserved', 'completed', 'cancelled']; // Додайте свої статуси
+    // Змінено дозволені статуси на ті, що є в базі даних
+    const allowedStatuses = ['reserved', 'completed', 'canceled'];
 
     if (!status || !allowedStatuses.includes(status)) {
         return res.status(400).json({ error: 'Invalid or missing status.' });
@@ -156,12 +155,8 @@ router.patch('/orders/:orderId/status', authenticateToken, async (req, res) => {
             return res.status(404).json({ error: 'Order not found or you do not have permission to update it.' });
         }
 
-        // Оновити статус замовлення
         await order.update({ status: status });
         logger.info(`Order ${orderId} status updated to ${status} by user ${req.user.username}`);
-
-        // Можливо, тут також можна відправити email-сповіщення про зміну статусу
-        // наприклад, якщо статус став 'completed'
 
         res.status(200).json({ message: `Order ${orderId} status updated to ${status}.`, order });
     } catch (error) {
@@ -171,7 +166,7 @@ router.patch('/orders/:orderId/status', authenticateToken, async (req, res) => {
 });
 
 
-// Маршрут для адміністратора, якщо він вам потрібен для перегляду всіх замовлень
+// Маршрут для адміністратора для перегляду всіх замовлень
 router.get('/admin/orders', authenticateToken, isAdmin, async (req, res) => {
     try {
         const orders = await Order.findAll({
@@ -187,7 +182,7 @@ router.get('/admin/orders', authenticateToken, isAdmin, async (req, res) => {
     }
 });
 
-// Додайте маршрут для видалення замовлення
+// Маршрут для видалення замовлення
 router.delete('/orders/:orderId', authenticateToken, async (req, res) => {
     const { orderId } = req.params;
 
@@ -203,7 +198,6 @@ router.delete('/orders/:orderId', authenticateToken, async (req, res) => {
             return res.status(404).json({ error: 'Order not found or you do not have permission to delete it.' });
         }
 
-        // Перед видаленням замовлення, поверніть кількість товару на склад
         const product = await Product.findByPk(order.productId);
         if (product) {
             await product.update({ stock: product.stock + order.quantity });
