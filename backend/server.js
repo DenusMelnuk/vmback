@@ -19,10 +19,10 @@ const userRoutes = require('./routes/userRoutes');
 
 // --- Ініціалізація додатку ---
 const app = express();
-//app.use(cors());
+app.use(cors());
 const allowedOrigins = [
     'http://localhost:3000', // Ваш React-додаток під час розробки
-    'https://vollmarket.vercel.app', // Ваш фронтенд-домен на продакшені
+    'https://vollmarket.vercel.app/', // Ваш фронтенд-домен на продакшені
     // Додайте інші дозволені домени, якщо є
 ];
 
