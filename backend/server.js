@@ -23,7 +23,7 @@ const app = express();
 
 const allowedOrigins = [
     'http://localhost:3000', // Ваш React-додаток під час розробки
-    'https://your-react-app-domain.com', // Ваш фронтенд-домен на продакшені
+    'https://vollmarket.vercel.app', // Ваш фронтенд-домен на продакшені
     // Додайте інші дозволені домени, якщо є
 ];
 
