@@ -19,12 +19,14 @@ const userRoutes = require('./routes/userRoutes');
 
 // --- Ініціалізація додатку ---
 const app = express();
-app.use(cors());
-const allowedOrigins = [
-    'http://localhost:3000', // Ваш React-додаток під час розробки
-    'https://vollmarket.vercel.app/', // Ваш фронтенд-домен на продакшені
-    // Додайте інші дозволені домени, якщо є
-];
+//app.use(cors());
+const corsOptions = {
+  origin: 'https://vollmarket.vercel.app',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+//app.use(cors(corsOptions));
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -39,7 +41,7 @@ const corsOptions = {
   credentials: true, // Дозволити надсилання cookies та HTTP-аутентифікаційних заголовків
   optionsSuccessStatus: 204 // Деякі старі браузери можуть мати проблеми з 200 для OPTIONS
 };
-
+app.options('*', cors(corsOptions));
 app.use(cors(corsOptions)); // Застосуйте налаштований CORS
 
 
