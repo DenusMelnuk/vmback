@@ -138,7 +138,7 @@ router.patch('/orders/:orderId/status', authenticateToken, async (req, res) => {
     const { status } = req.body; // Очікуємо новий статус, наприклад 'completed' або 'processed'
 
     // Перелік дозволених статусів, щоб уникнути довільних змін
-    const allowedStatuses = ['processed', 'completed', 'cancelled']; // Додайте свої статуси
+    const allowedStatuses = ['reserved', 'completed', 'cancelled']; // Додайте свої статуси
 
     if (!status || !allowedStatuses.includes(status)) {
         return res.status(400).json({ error: 'Invalid or missing status.' });
