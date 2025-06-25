@@ -70,19 +70,72 @@ router.post('/orders', authenticateToken, async (req, res, next) => {
   }
 });
 
-router.get('/orders', authenticateToken, isAdmin, async (req, res) => {
+// Змінений маршрут GET /orders для отримання замовлень ТІЛЬКИ поточного користувача
+router.get('/orders', authenticateToken, async (req, res) => { // Видалено isAdmin
   try {
+    const userId = req.user.id; // Отримуємо ID поточного користувача з токена
+
     const orders = await Order.findAll({
+      where: { userId: userId }, // Фільтруємо замовлення за ID користувача
       include: [
         { model: User, attributes: ['username', 'email'] },
-        { model: Product, attributes: ['name', 'price'] }
+        { model: Product, attributes: ['name', 'price', 'imageUrl'] } // <-- Додано 'imageUrl' сюди!
       ]
     });
     res.json(orders);
   } catch (error) {
-    logger.error(`Orders fetch error (admin access): ${error.message}`, error);
+    logger.error(`Orders fetch error for user ${req.user.username}: ${error.message}`, error);
     res.status(500).json({ error: 'Failed to fetch orders.' });
   }
+});
+
+
+// Маршрут для адміністратора, якщо він вам потрібен для перегляду всіх замовлень
+router.get('/admin/orders', authenticateToken, isAdmin, async (req, res) => {
+    try {
+        const orders = await Order.findAll({
+            include: [
+                { model: User, attributes: ['username', 'email'] },
+                { model: Product, attributes: ['name', 'price', 'imageUrl'] }
+            ]
+        });
+        res.json(orders);
+    } catch (error) {
+        logger.error(`Admin orders fetch error: ${error.message}`, error);
+        res.status(500).json({ error: 'Failed to fetch all orders.' });
+    }
+});
+
+// Додайте маршрут для видалення замовлення
+router.delete('/orders/:orderId', authenticateToken, async (req, res) => { // Змінено на :orderId, бо фронтенд передає productId
+    const { orderId } = req.params; // orderId замість productId
+
+    try {
+        // Find the order to ensure it belongs to the current user
+        const order = await Order.findOne({
+            where: {
+                id: orderId,
+                userId: req.user.id
+            }
+        });
+
+        if (!order) {
+            return res.status(404).json({ error: 'Order not found or you do not have permission to delete it.' });
+        }
+
+        // Перед видаленням замовлення, поверніть кількість товару на склад
+        const product = await Product.findByPk(order.productId);
+        if (product) {
+            await product.update({ stock: product.stock + order.quantity });
+        }
+
+        await order.destroy(); // Видаляємо замовлення
+
+        res.status(200).json({ message: 'Order successfully removed.' });
+    } catch (error) {
+        logger.error(`Failed to delete order ${orderId} by user ${req.user.username}: ${error.message}`, error);
+        res.status(500).json({ error: 'Failed to remove order.' });
+    }
 });
 
 module.exports = router;
